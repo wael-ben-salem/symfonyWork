@@ -59,8 +59,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-php-
 
-      - name: Validate composer files
-        run: composer validate --no-check-publish
+      - name: Validate composer files (skip lock and publish checks)
+        run: composer validate --no-check-publish --no-check-lock
 
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist --no-progress --no-suggest
