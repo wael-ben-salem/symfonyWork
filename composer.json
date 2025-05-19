@@ -1,4 +1,6 @@
 {
+    "name": "wael-ben-salem/symfonyWork",
+    "description": "Projet Symfony de gestion ...",
     "type": "project",
     "license": "proprietary",
     "minimum-stability": "stable",
