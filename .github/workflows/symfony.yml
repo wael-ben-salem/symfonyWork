@@ -2,31 +2,75 @@ name: Symfony CI
 
 on:
   push:
-    branches:
-      - master
+    branches: [ "master" ]
   pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  symfony-tests:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        php-version: [8.1, 8.2]
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: biblio_esprit
+          MYSQL_USER: symfony
+          MYSQL_PASSWORD: symfony
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3306:3306
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-version }}
-          extensions: mbstring, intl, pdo_mysql, xml, ctype, iconv
-          ini-values: post_max_size=256M, upload_max_filesize=256M
-          coverage: none
+          php-version: '8.0'
+          extensions: mbstring, intl, pdo_mysql
 
-      - name: Install Composer dependencies
-        run: composer install --no-progress --prefer-dist --no-scripts --no-interaction
+      - name: Wait for MySQL to be ready
+        run: |
+          for i in {30..0}; do
+            if mysqladmin ping -h 127.0.0.1 -P 3306 --silent; then
+              echo "MySQL is up"
+              break
+            fi
+            echo 'Waiting for MySQL...'
+            sleep 1
+          done
 
-      - name: Run tests
-        run: ./vendor/bin/phpunit
+      - name: Copy .env.test.local
+        run: php -r "file_exists('.env.test.local') || copy('.env.test', '.env.test.local');"
+
+      - name: Cache Composer packages
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-
+
+      - name: Validate composer files
+        run: composer validate
+
+      - name: Install Dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --no-suggest
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: "mysql://symfony:symfony@127.0.0.1:3306/biblio_esprit?serverVersion=8.0"
+        run: php bin/console doctrine:migrations:migrate --no-interaction
+
+      - name: Execute tests (Unit and Feature) via PHPUnit
+        env:
+          DATABASE_URL: "mysql://symfony:symfony@127.0.0.1:3306/biblio_esprit?serverVersion=8.0"
+        run: vendor/bin/phpunit --colors=always --verbose
