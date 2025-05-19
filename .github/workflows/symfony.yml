@@ -2,16 +2,22 @@ name: Symfony CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches:
+      - master
   pull_request:
-    branches: [ "master" ]
+    branches:
+      - master
 
 permissions:
   contents: read
 
 jobs:
-  symfony-tests:
+  build:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        php-version: [8.1, 8.2]
 
     services:
       mysql:
@@ -32,15 +38,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: shivammathur/setup-php@v2
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.0'
-          extensions: mbstring, intl, pdo_mysql
+          php-version: ${{ matrix.php-version }}
+          extensions: mbstring, intl, pdo_mysql, xml, ctype, iconv
+          ini-values: post_max_size=256M, upload_max_filesize=256M
+          coverage: none
 
       - name: Wait for MySQL to be ready
         run: |
           for i in {30..0}; do
-            if mysqladmin ping -h 127.0.0.1 -P 3306 --silent; then
+            if mysqladmin ping -h mysql --silent; then
               echo "MySQL is up"
               break
             fi
@@ -67,10 +76,10 @@ jobs:
 
       - name: Run database migrations
         env:
-          DATABASE_URL: "mysql://symfony:symfony@127.0.0.1:3306/biblio_esprit?serverVersion=8.0"
+          DATABASE_URL: "mysql://symfony:symfony@mysql:3306/biblio_esprit?serverVersion=8.0"
         run: php bin/console doctrine:migrations:migrate --no-interaction
 
       - name: Execute tests (Unit and Feature) via PHPUnit
         env:
-          DATABASE_URL: "mysql://symfony:symfony@127.0.0.1:3306/biblio_esprit?serverVersion=8.0"
-        run: vendor/bin/phpunit --colors=always --verbose
+          DATABASE_URL: "mysql://symfony:symfony@mysql:3306/biblio_esprit?serverVersion=8.0"
+        run: ./vendor/bin/phpunit --colors=always --verbose
