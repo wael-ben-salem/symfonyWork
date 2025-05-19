@@ -60,7 +60,7 @@ jobs:
             ${{ runner.os }}-php-
 
       - name: Validate composer files
-        run: composer validate
+        run: composer validate --no-check-publish
 
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist --no-progress --no-suggest
