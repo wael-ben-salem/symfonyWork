@@ -62,8 +62,8 @@ jobs:
       - name: Validate composer files (skip lock and publish checks)
         run: composer validate --no-check-publish --no-check-lock
 
-      - name: Install Dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress --no-suggest
+      - name: Install Composer dependencies
+        run: composer install --no-progress --prefer-dist --no-scripts --no-interaction
 
       - name: Run database migrations
         env:
